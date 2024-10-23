@@ -1,0 +1,6 @@
+@TpFinalLaboratorio.Net_HostAddress = http://localhost:5187
+
+GET {{TpFinalLaboratorio.Net_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
