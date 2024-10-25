@@ -24,6 +24,7 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             return await _context
                 .Contratos.Include(c => c.Inmueble)
+                .ThenInclude(i => i.Propietario) // Incluye el propietario del inmueble
                 .Include(c => c.Inquilino)
                 .ToListAsync();
         }

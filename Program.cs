@@ -47,9 +47,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         "AllowAllOrigins",
-        builder =>
+        policy =>
         {
-            builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
         }
     );
 });
@@ -68,10 +68,13 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
 });
 
+// Construir la aplicación
 var app = builder.Build();
 
+// Configuración del entorno de desarrollo
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -79,10 +82,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Configurar el middleware
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAllOrigins"); // Aplicar la política de CORS
-
 app.UseAuthentication();
 app.UseAuthorization();
 
