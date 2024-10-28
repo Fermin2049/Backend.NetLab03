@@ -99,5 +99,24 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             return _context.Inquilinos.Any(e => e.IdInquilino == id);
         }
+
+        [HttpGet("ByPropietario/{propietarioId}")]
+        public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinosByPropietarioId(
+            int propietarioId
+        )
+        {
+            var inquilinos = await _context
+                .Inquilinos.Include(i => i.Contratos)
+                .ThenInclude(c => c.Inmueble)
+                .Where(i => i.Contratos.Any(c => c.Inmueble.IdPropietario == propietarioId))
+                .ToListAsync();
+
+            if (inquilinos == null || inquilinos.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return inquilinos;
+        }
     }
 }
