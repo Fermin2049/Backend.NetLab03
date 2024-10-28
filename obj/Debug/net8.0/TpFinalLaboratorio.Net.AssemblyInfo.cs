@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TpFinalLaboratorio.Net")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0f3140a1f9b5b14c010085bf96dd9484bb9c89fc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6f08354d0a207bb96b613ae3f36787c0c640d301")]
 [assembly: System.Reflection.AssemblyProductAttribute("TpFinalLaboratorio.Net")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TpFinalLaboratorio.Net")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
