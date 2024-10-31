@@ -14,6 +14,7 @@ namespace TpFinalLaboratorio.Net.Models
         public int Ambientes { get; set; }
         public decimal Precio { get; set; }
         public string Estado { get; set; } = string.Empty;
+        public string Imagen { get; set; } = string.Empty; // Nueva propiedad
 
         [ForeignKey("Propietario")]
         public int IdPropietario { get; set; }

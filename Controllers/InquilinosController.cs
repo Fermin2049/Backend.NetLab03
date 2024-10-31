@@ -100,6 +100,7 @@ namespace TpFinalLaboratorio.Net.Controllers
             return _context.Inquilinos.Any(e => e.IdInquilino == id);
         }
 
+        // Nuevo método para obtener inquilinos por propietario
         [HttpGet("ByPropietario/{propietarioId}")]
         public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinosByPropietarioId(
             int propietarioId
@@ -108,7 +109,10 @@ namespace TpFinalLaboratorio.Net.Controllers
             var inquilinos = await _context
                 .Inquilinos.Include(i => i.Contratos)
                 .ThenInclude(c => c.Inmueble)
-                .Where(i => i.Contratos.Any(c => c.Inmueble.IdPropietario == propietarioId))
+                .Where(i =>
+                    i.Contratos != null
+                    && i.Contratos.Any(c => c.Inmueble.IdPropietario == propietarioId)
+                )
                 .ToListAsync();
 
             if (inquilinos == null || inquilinos.Count == 0)

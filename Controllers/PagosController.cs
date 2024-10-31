@@ -95,5 +95,27 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             return _context.Pagos.Any(e => e.IdPago == id);
         }
+
+        // Nuevo método para obtener pagos por propietario
+        [HttpGet("ByPropietario/{propietarioId}")]
+        public async Task<ActionResult<IEnumerable<Pago>>> GetPagosByPropietarioId(
+            int propietarioId
+        )
+        {
+            var pagos = await _context
+                .Pagos.Include(p => p.Contrato)
+                .ThenInclude(c => c.Inmueble)
+                .Where(p =>
+                    p.Contrato != null && p.Contrato.Inmueble.IdPropietario == propietarioId
+                )
+                .ToListAsync();
+
+            if (pagos == null || pagos.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return pagos;
+        }
     }
 }

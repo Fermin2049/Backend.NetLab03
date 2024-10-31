@@ -24,7 +24,7 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             return await _context
                 .Contratos.Include(c => c.Inmueble)
-                .ThenInclude(i => i.Propietario) // Incluye el propietario del inmueble
+                .ThenInclude(i => i.Propietario)
                 .Include(c => c.Inquilino)
                 .ToListAsync();
         }
@@ -103,6 +103,7 @@ namespace TpFinalLaboratorio.Net.Controllers
             return _context.Contratos.Any(e => e.IdContrato == id);
         }
 
+        // Nuevo método para obtener contratos por propietario
         [HttpGet("ByPropietario/{propietarioId}")]
         public async Task<ActionResult<IEnumerable<Contrato>>> GetContratosByPropietarioId(
             int propietarioId
@@ -110,7 +111,7 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             var contratos = await _context
                 .Contratos.Include(c => c.Inmueble)
-                .ThenInclude(i => i.Propietario != null ? i.Propietario : null)
+                .ThenInclude(i => i.Propietario)
                 .Include(c => c.Inquilino)
                 .Where(c => c.Inmueble != null && c.Inmueble.IdPropietario == propietarioId)
                 .ToListAsync();

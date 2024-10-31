@@ -95,5 +95,23 @@ namespace TpFinalLaboratorio.Net.Controllers
         {
             return _context.Inmuebles.Any(e => e.IdInmueble == id);
         }
+
+        // Nuevo método para obtener inmuebles por propietario
+        [HttpGet("ByPropietario/{propietarioId}")]
+        public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmueblesByPropietarioId(
+            int propietarioId
+        )
+        {
+            var inmuebles = await _context
+                .Inmuebles.Where(i => i.IdPropietario == propietarioId)
+                .ToListAsync();
+
+            if (inmuebles == null || inmuebles.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return inmuebles;
+        }
     }
 }
