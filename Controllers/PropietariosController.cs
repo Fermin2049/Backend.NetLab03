@@ -71,7 +71,9 @@ namespace TpFinalLaboratorio.Net.Controllers
         public async Task<IActionResult> PutPropietario(
             int id,
             [FromForm] Propietario propietario,
-            [FromForm] IFormFile? fotoPerfil
+            [FromForm] IFormFile? fotoPerfil,
+            [FromForm] string? currentPassword,
+            [FromForm] string? newPassword
         )
         {
             if (id != propietario.IdPropietario)
@@ -105,13 +107,17 @@ namespace TpFinalLaboratorio.Net.Controllers
                 propietario.FotoPerfil = existingPropietario.FotoPerfil;
             }
 
-            // Verificar si la contraseña ha cambiado
-            if (
-                !string.IsNullOrEmpty(propietario.Password)
-                && propietario.Password != existingPropietario.Password
-            )
+            // Verificar si se proporciona una nueva contraseña
+            if (!string.IsNullOrEmpty(newPassword))
             {
-                propietario.Password = HashPassword(propietario.Password);
+                // Verificar la contraseña actual
+                if (!VerifyPassword(currentPassword, existingPropietario.Password))
+                {
+                    return BadRequest("La contraseña actual es incorrecta.");
+                }
+
+                // Actualizar la contraseña
+                propietario.Password = HashPassword(newPassword);
             }
             else
             {
