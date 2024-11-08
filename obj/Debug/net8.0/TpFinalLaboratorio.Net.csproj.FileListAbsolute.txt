@@ -148,3 +148,4 @@ C:\Users\Fermin\Desktop\TpFinalLaboratorio.Net\bin\Debug\net8.0\TpFinalLaborator
 C:\Users\Fermin\Desktop\TpFinalLaboratorio.Net\bin\Debug\net8.0\TpFinalLaboratorio.Net.pdb
 C:\Users\Fermin\Desktop\TpFinalLaboratorio.Net\obj\Debug\net8.0\TpFinalLaboratorio.Net.genruntimeconfig.cache
 C:\Users\Fermin\Desktop\TpFinalLaboratorio.Net\obj\Debug\net8.0\ref\TpFinalLaboratorio.Net.dll
+C:\Users\Fermin\Desktop\TpFinalLaboratorio.Net\bin\Debug\net8.0\TpFinalLaboratorio.Net.staticwebassets.runtime.json

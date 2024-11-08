@@ -84,6 +84,7 @@ if (app.Environment.IsDevelopment())
 
 // Configurar el middleware
 app.UseHttpsRedirection();
+app.UseStaticFiles(); // Asegúrate de que esta línea esté presente
 app.UseCors("AllowAllOrigins"); // Aplicar la política de CORS
 app.UseAuthentication();
 app.UseAuthorization();

@@ -4,12 +4,15 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MimeKit;
 using TpFinalLaboratorio.Net.Data;
 using TpFinalLaboratorio.Net.Models;
 
@@ -44,6 +47,7 @@ namespace TpFinalLaboratorio.Net.Controllers
                 return NotFound();
             }
 
+            propietario.FotoPerfil = Url.Content($"~/{propietario.FotoPerfil}");
             return propietario;
         }
 
@@ -64,7 +68,11 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPropietario(int id, Propietario propietario)
+        public async Task<IActionResult> PutPropietario(
+            int id,
+            [FromForm] Propietario propietario,
+            [FromForm] IFormFile? fotoPerfil
+        )
         {
             if (id != propietario.IdPropietario)
             {
@@ -79,8 +87,36 @@ namespace TpFinalLaboratorio.Net.Controllers
                 return NotFound();
             }
 
-            // Encriptar siempre la contraseña antes de guardar
-            propietario.Password = HashPassword(propietario.Password);
+            if (fotoPerfil != null && fotoPerfil.Length > 0)
+            {
+                var fileExtension = Path.GetExtension(fotoPerfil.FileName);
+                var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+                var filePath = Path.Combine("wwwroot/images", uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await fotoPerfil.CopyToAsync(stream);
+                }
+
+                propietario.FotoPerfil = $"images/{uniqueFileName}";
+            }
+            else
+            {
+                propietario.FotoPerfil = existingPropietario.FotoPerfil;
+            }
+
+            // Verificar si la contraseña ha cambiado
+            if (
+                !string.IsNullOrEmpty(propietario.Password)
+                && propietario.Password != existingPropietario.Password
+            )
+            {
+                propietario.Password = HashPassword(propietario.Password);
+            }
+            else
+            {
+                propietario.Password = existingPropietario.Password;
+            }
 
             _context.Entry(propietario).State = EntityState.Modified;
 
@@ -99,21 +135,6 @@ namespace TpFinalLaboratorio.Net.Controllers
                     throw;
                 }
             }
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePropietario(int id)
-        {
-            var propietario = await _context.Propietarios.FindAsync(id);
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            _context.Propietarios.Remove(propietario);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -164,6 +185,135 @@ namespace TpFinalLaboratorio.Net.Controllers
             return propietario;
         }
 
+        [HttpPost("solicitar-restablecimiento")]
+        public async Task<IActionResult> SolicitarRestablecimiento([FromForm] string email)
+        {
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return BadRequest("Correo electrónico no encontrado.");
+            }
+
+            // Generar token de restablecimiento
+            var token = Guid.NewGuid().ToString();
+
+            // Guardar el token y su fecha de expiración
+            propietario.ResetToken = token;
+            propietario.ResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token válido por 1 hora
+            await _context.SaveChangesAsync();
+
+            // Enviar correo electrónico con el enlace de restablecimiento
+            var resetLink =
+                $"{Request.Scheme}://{Request.Host}/api/Propietarios/{propietario.IdPropietario}/restablecer-contrasena?token={token}";
+            await EnviarCorreoAsync(
+                email,
+                "Restablecimiento de contraseña",
+                $"Haga clic en el siguiente enlace para restablecer su contraseña: {resetLink}"
+            );
+
+            return Ok(
+                "Se ha enviado un enlace de restablecimiento de contraseña a su correo electrónico."
+            );
+        }
+
+        private async Task EnviarCorreoAsync(string destinatario, string asunto, string cuerpo)
+        {
+            var mensaje = new MimeMessage();
+            mensaje.From.Add(new MailboxAddress("Nombre del remitente", _config["SMTP_User"]));
+            mensaje.To.Add(new MailboxAddress("Nombre del destinatario", destinatario));
+            mensaje.Subject = asunto;
+            mensaje.Body = new TextPart("plain") { Text = cuerpo };
+
+            using var cliente = new SmtpClient();
+
+            if (int.TryParse(_config["SMTP_Port"], out int smtpPort))
+            {
+                await cliente.ConnectAsync(
+                    _config["SMTP_Host"],
+                    smtpPort,
+                    SecureSocketOptions.StartTls
+                );
+            }
+            else
+            {
+                throw new ArgumentException("Invalid SMTP port configuration");
+            }
+
+            await cliente.AuthenticateAsync(_config["SMTP_User"], _config["SMTP_Pass"]);
+            await cliente.SendAsync(mensaje);
+            await cliente.DisconnectAsync(true);
+        }
+
+        [HttpGet("{id}/restablecer-contrasena")]
+        public IActionResult MostrarFormularioRestablecimiento(int id, [FromQuery] string token)
+        {
+            // Verificar si el token es válido y no ha expirado
+            var propietario = _context.Propietarios.FirstOrDefault(p =>
+                p.IdPropietario == id
+                && p.ResetToken == token
+                && p.ResetTokenExpiry > DateTime.UtcNow
+            );
+            if (propietario == null)
+            {
+                return BadRequest("Token de restablecimiento inválido o expirado.");
+            }
+
+            return Ok(
+                new
+                {
+                    Message = "Formulario de restablecimiento de contraseña",
+                    Token = token,
+                    Propietario = new
+                    {
+                        Id = propietario.IdPropietario,
+                        Email = propietario.Email,
+                        Nombre = propietario.Nombre,
+                        Apellido = propietario.Apellido,
+                    },
+                }
+            );
+        }
+
+        [HttpPost("{id}/restablecer-contrasena")]
+        public async Task<IActionResult> RestablecerContraseña(
+            int id,
+            [FromBody] RestablecerContrasenaRequest request
+        )
+        {
+            var propietario = await _context.Propietarios.FindAsync(id);
+            if (propietario == null)
+            {
+                return NotFound("Propietario no encontrado.");
+            }
+
+            // Verificar el token de restablecimiento
+            if (!VerificarTokenDeRestablecimiento(propietario, request.Token))
+            {
+                return BadRequest("Token de restablecimiento inválido o expirado.");
+            }
+
+            // Actualizar la contraseña
+            propietario.Password = HashPassword(request.NuevaContrasena);
+            await _context.SaveChangesAsync();
+
+            return Ok("Contraseña restablecida con éxito.");
+        }
+
+        private bool VerificarTokenDeRestablecimiento(Propietario propietario, string token)
+        {
+            // Verificar si el token y su fecha de expiración existen
+            if (propietario.ResetToken == null || propietario.ResetTokenExpiry == null)
+            {
+                return false;
+            }
+
+            // Comprobar si el token coincide y si no ha expirado
+            return propietario.ResetToken == token
+                && propietario.ResetTokenExpiry > DateTime.UtcNow;
+        }
+
         private string HashPassword(string password)
         {
             var saltConfig = _config["Salt"];
@@ -171,6 +321,7 @@ namespace TpFinalLaboratorio.Net.Controllers
             {
                 throw new ArgumentNullException("Salt configuration is missing.");
             }
+
             byte[] salt = Encoding.ASCII.GetBytes(saltConfig);
             return Convert.ToBase64String(
                 KeyDerivation.Pbkdf2(
@@ -205,11 +356,7 @@ namespace TpFinalLaboratorio.Net.Controllers
                 new Claim(ClaimTypes.Role, "Propietario"),
                 new Claim("Dni", propietario.Dni),
                 new Claim("Telefono", propietario.Telefono),
-                new Claim(
-                    "FotoPerfil",
-                    propietario.FotoPerfil
-                ) // Nueva propiedad en el token
-                ,
+                new Claim("FotoPerfil", Url.Content($"~/{propietario.FotoPerfil}")),
             };
 
             var token = new JwtSecurityToken(
@@ -222,6 +369,12 @@ namespace TpFinalLaboratorio.Net.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+    }
+
+    public class RestablecerContrasenaRequest
+    {
+        public string Token { get; set; } = string.Empty;
+        public string NuevaContrasena { get; set; } = string.Empty;
     }
 
     public class LoginView
