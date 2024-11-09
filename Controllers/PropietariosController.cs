@@ -363,6 +363,11 @@ namespace TpFinalLaboratorio.Net.Controllers
                 new Claim("Dni", propietario.Dni),
                 new Claim("Telefono", propietario.Telefono),
                 new Claim("FotoPerfil", Url.Content($"~/{propietario.FotoPerfil}")),
+                new Claim(
+                    "IdPropietario",
+                    propietario.IdPropietario.ToString()
+                ) // Agregar IdPropietario
+                ,
             };
 
             var token = new JwtSecurityToken(

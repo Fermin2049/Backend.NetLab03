@@ -39,8 +39,25 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Inmueble>> PostInmueble(Inmueble inmueble)
+        public async Task<ActionResult<Inmueble>> PostInmueble(
+            [FromForm] Inmueble inmueble,
+            [FromForm] IFormFile? imagen
+        )
         {
+            if (imagen != null && imagen.Length > 0)
+            {
+                var fileExtension = Path.GetExtension(imagen.FileName);
+                var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+                var filePath = Path.Combine("wwwroot/images", uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await imagen.CopyToAsync(stream);
+                }
+
+                inmueble.Imagen = $"images/{uniqueFileName}";
+            }
+
             _context.Inmuebles.Add(inmueble);
             await _context.SaveChangesAsync();
 
@@ -48,11 +65,41 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutInmueble(int id, Inmueble inmueble)
+        public async Task<IActionResult> PutInmueble(
+            int id,
+            [FromForm] Inmueble inmueble,
+            [FromForm] IFormFile? imagen
+        )
         {
             if (id != inmueble.IdInmueble)
             {
                 return BadRequest();
+            }
+
+            var existingInmueble = await _context
+                .Inmuebles.AsNoTracking()
+                .FirstOrDefaultAsync(i => i.IdInmueble == id);
+            if (existingInmueble == null)
+            {
+                return NotFound();
+            }
+
+            if (imagen != null && imagen.Length > 0)
+            {
+                var fileExtension = Path.GetExtension(imagen.FileName);
+                var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+                var filePath = Path.Combine("wwwroot/images", uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await imagen.CopyToAsync(stream);
+                }
+
+                inmueble.Imagen = $"images/{uniqueFileName}";
+            }
+            else
+            {
+                inmueble.Imagen = existingInmueble.Imagen;
             }
 
             _context.Entry(inmueble).State = EntityState.Modified;
@@ -91,11 +138,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             return NoContent();
         }
 
-        private bool InmuebleExists(int id)
-        {
-            return _context.Inmuebles.Any(e => e.IdInmueble == id);
-        }
-
         // Nuevo método para obtener inmuebles por propietario
         [HttpGet("ByPropietario/{propietarioId}")]
         public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmueblesByPropietarioId(
@@ -112,6 +154,43 @@ namespace TpFinalLaboratorio.Net.Controllers
             }
 
             return inmuebles;
+        }
+
+        [HttpPatch("{id}/estado")]
+        public async Task<IActionResult> UpdateEstadoInmueble(int id, [FromBody] string nuevoEstado)
+        {
+            var inmueble = await _context.Inmuebles.FindAsync(id);
+            if (inmueble == null)
+            {
+                return NotFound();
+            }
+
+            inmueble.Estado = nuevoEstado;
+
+            _context.Entry(inmueble).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!InmuebleExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        private bool InmuebleExists(int id)
+        {
+            return _context.Inmuebles.Any(e => e.IdInmueble == id);
         }
     }
 }
