@@ -18,6 +18,7 @@ using TpFinalLaboratorio.Net.Models;
 
 namespace TpFinalLaboratorio.Net.Controllers
 {
+    [Authorize(Roles = "Propietario")]
     [Route("api/[controller]")]
     [ApiController]
     public class PropietariosController : ControllerBase

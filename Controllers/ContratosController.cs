@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TpFinalLaboratorio.Net.Data;
@@ -8,6 +9,7 @@ using TpFinalLaboratorio.Net.Models;
 
 namespace TpFinalLaboratorio.Net.Controllers
 {
+    [Authorize(Roles = "Propietario")]
     [Route("api/[controller]")]
     [ApiController]
     public class ContratosController : ControllerBase
