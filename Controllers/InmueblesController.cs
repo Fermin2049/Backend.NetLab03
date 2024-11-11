@@ -188,6 +188,24 @@ namespace TpFinalLaboratorio.Net.Controllers
             return NoContent();
         }
 
+        // Nuevo método para obtener contratos por inmueble
+        [HttpGet("ByInmueble/{inmuebleId}")]
+        public async Task<ActionResult<IEnumerable<Contrato>>> GetContractsByInmuebleId(
+            int inmuebleId
+        )
+        {
+            var contracts = await _context
+                .Contratos.Where(c => c.IdInmueble == inmuebleId)
+                .ToListAsync();
+
+            if (contracts == null || contracts.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return contracts;
+        }
+
         private bool InmuebleExists(int id)
         {
             return _context.Inmuebles.Any(e => e.IdInmueble == id);
