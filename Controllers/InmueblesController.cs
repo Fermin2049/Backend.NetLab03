@@ -157,12 +157,19 @@ namespace TpFinalLaboratorio.Net.Controllers
                 var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
                 var filePath = Path.Combine("wwwroot/images", uniqueFileName);
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                try
                 {
-                    await imagen.CopyToAsync(stream);
-                }
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await imagen.CopyToAsync(stream);
+                    }
 
-                inmueble.Imagen = $"images/{uniqueFileName}";
+                    inmueble.Imagen = $"images/{uniqueFileName}";
+                }
+                catch (Exception)
+                {
+                    return StatusCode(500, "Error al guardar la imagen.");
+                }
             }
             else
             {
@@ -188,37 +195,6 @@ namespace TpFinalLaboratorio.Net.Controllers
                     throw;
                 }
             }
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteInmueble(int id)
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            var inmueble = await _context.Inmuebles.FirstOrDefaultAsync(i =>
-                i.IdInmueble == id && i.IdPropietario == propietario.IdPropietario
-            );
-            if (inmueble == null)
-            {
-                return NotFound();
-            }
-
-            _context.Inmuebles.Remove(inmueble);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
