@@ -22,34 +22,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Pago>>> GetPagos()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            return await _context
-                .Pagos.Include(p => p.Contrato)
-                .ThenInclude(c => c.Inmueble)
-                .Where(p =>
-                    p.Contrato != null
-                    && p.Contrato.Inmueble != null
-                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
-                )
-                .ToListAsync();
-        }
-
         [HttpGet("{id}")]
         public async Task<ActionResult<Pago>> GetPago(int id)
         {
@@ -220,42 +192,6 @@ namespace TpFinalLaboratorio.Net.Controllers
         private bool PagoExists(int id)
         {
             return _context.Pagos.Any(e => e.IdPago == id);
-        }
-
-        // Nuevo método para obtener pagos por propietario
-        [HttpGet("ByPropietario")]
-        public async Task<ActionResult<IEnumerable<Pago>>> GetPagosByPropietario()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            var pagos = await _context
-                .Pagos.Include(p => p.Contrato)
-                .ThenInclude(c => c.Inmueble)
-                .Where(p =>
-                    p.Contrato != null
-                    && p.Contrato.Inmueble != null
-                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
-                )
-                .ToListAsync();
-
-            if (pagos == null || pagos.Count == 0)
-            {
-                return NotFound();
-            }
-
-            return pagos;
         }
     }
 }

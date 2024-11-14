@@ -32,40 +32,45 @@ namespace TpFinalLaboratorio.Net.Controllers
             _config = config;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Propietario>>> GetPropietarios()
+        [HttpPost("login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Login([FromForm] LoginView loginView)
         {
-            return await _context.Propietarios.ToListAsync();
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(x =>
+                x.Email == loginView.Usuario
+            );
+            if (
+                propietario == null
+                || loginView.Clave == null
+                || !VerifyPassword(loginView.Clave, propietario.Password)
+            )
+            {
+                return BadRequest("Nombre de usuario o clave incorrecta");
+            }
+
+            var token = GenerateJwtToken(propietario);
+            return Ok(new { token });
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Propietario>> GetPropietario(int id)
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<Propietario>> GetMyDetails()
         {
-            var propietario = await _context.Propietarios.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
 
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
             if (propietario == null)
             {
                 return NotFound();
             }
 
-            propietario.FotoPerfil = Url.Content($"~/{propietario.FotoPerfil}");
             return propietario;
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<Propietario>> PostPropietario(
-            [FromBody] Propietario propietario
-        )
-        {
-            propietario.Password = HashPassword(propietario.Password);
-            _context.Propietarios.Add(propietario);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(
-                nameof(GetPropietario),
-                new { id = propietario.IdPropietario },
-                propietario
-            );
         }
 
         [HttpPut("me")]
@@ -144,52 +149,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             }
 
             return NoContent();
-        }
-
-        private bool PropietarioExists(int id)
-        {
-            return _context.Propietarios.Any(e => e.IdPropietario == id);
-        }
-
-        [HttpPost("login")]
-        [AllowAnonymous]
-        public async Task<IActionResult> Login([FromForm] LoginView loginView)
-        {
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(x =>
-                x.Email == loginView.Usuario
-            );
-            if (
-                propietario == null
-                || loginView.Clave == null
-                || !VerifyPassword(loginView.Clave, propietario.Password)
-            )
-            {
-                return BadRequest("Nombre de usuario o clave incorrecta");
-            }
-
-            var token = GenerateJwtToken(propietario);
-            return Ok(new { token });
-        }
-
-        [HttpGet("me")]
-        [Authorize]
-        public async Task<ActionResult<Propietario>> GetMyDetails()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            return propietario;
         }
 
         [HttpPost("solicitar-restablecimiento")]
@@ -313,6 +272,11 @@ namespace TpFinalLaboratorio.Net.Controllers
                     },
                 }
             );
+        }
+
+        private bool PropietarioExists(int id)
+        {
+            return _context.Propietarios.Any(e => e.IdPropietario == id);
         }
 
         private bool VerificarTokenDeRestablecimiento(Propietario propietario, string token)

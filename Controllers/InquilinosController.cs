@@ -22,34 +22,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinos()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            var inquilinos = await _context
-                .Inquilinos.Include(i => i.Contratos)
-                .ThenInclude(c => c.Inmueble)
-                .Where(i =>
-                    i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
-                )
-                .ToListAsync();
-
-            return inquilinos;
-        }
-
         [HttpGet("{id}")]
         public async Task<ActionResult<Inquilino>> GetInquilino(int id)
         {
@@ -208,40 +180,6 @@ namespace TpFinalLaboratorio.Net.Controllers
         private bool InquilinoExists(int id)
         {
             return _context.Inquilinos.Any(e => e.IdInquilino == id);
-        }
-
-        // Nuevo método para obtener inquilinos por propietario
-        [HttpGet("ByPropietario")]
-        public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinosByPropietario()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            var inquilinos = await _context
-                .Inquilinos.Include(i => i.Contratos)
-                .ThenInclude(c => c.Inmueble)
-                .Where(i =>
-                    i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
-                )
-                .ToListAsync();
-
-            if (inquilinos == null || inquilinos.Count == 0)
-            {
-                return NotFound();
-            }
-
-            return inquilinos;
         }
     }
 }

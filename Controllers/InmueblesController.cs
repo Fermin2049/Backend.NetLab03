@@ -22,28 +22,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmuebles()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            return await _context
-                .Inmuebles.Where(i => i.IdPropietario == propietario.IdPropietario)
-                .ToListAsync();
-        }
-
         [HttpGet("{id}")]
         public async Task<ActionResult<Inmueble>> GetInmueble(int id)
         {
@@ -199,36 +177,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             return NoContent();
         }
 
-        // Nuevo método para obtener inmuebles por propietario
-        [HttpGet("ByPropietario")]
-        public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmueblesByPropietario()
-        {
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                return Unauthorized();
-            }
-
-            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
-                p.Email == email
-            );
-            if (propietario == null)
-            {
-                return NotFound();
-            }
-
-            var inmuebles = await _context
-                .Inmuebles.Where(i => i.IdPropietario == propietario.IdPropietario)
-                .ToListAsync();
-
-            if (inmuebles == null || inmuebles.Count == 0)
-            {
-                return NotFound();
-            }
-
-            return inmuebles;
-        }
-
         [HttpPatch("{id}/estado")]
         public async Task<IActionResult> UpdateEstadoInmueble(int id, [FromBody] string nuevoEstado)
         {
@@ -277,7 +225,6 @@ namespace TpFinalLaboratorio.Net.Controllers
             return NoContent();
         }
 
-        // Nuevo método para obtener contratos por inmueble
         [HttpGet("ByInmueble/{inmuebleId}")]
         public async Task<ActionResult<IEnumerable<Contrato>>> GetContractsByInmuebleId(
             int inmuebleId
