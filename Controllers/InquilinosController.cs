@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,13 +25,55 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinos()
         {
-            return await _context.Inquilinos.ToListAsync();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inquilinos = await _context
+                .Inquilinos.Include(i => i.Contratos)
+                .ThenInclude(c => c.Inmueble)
+                .Where(i =>
+                    i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
+                )
+                .ToListAsync();
+
+            return inquilinos;
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Inquilino>> GetInquilino(int id)
         {
-            var inquilino = await _context.Inquilinos.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inquilino = await _context
+                .Inquilinos.Include(i => i.Contratos)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(i =>
+                    i.IdInquilino == id
+                    && i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
+                );
 
             if (inquilino == null)
             {
@@ -43,6 +86,23 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpPost]
         public async Task<ActionResult<Inquilino>> PostInquilino(Inquilino inquilino)
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            // Asignar el propietario logueado al inquilino
+            inquilino.PropietarioId = propietario.IdPropietario;
+
             _context.Inquilinos.Add(inquilino);
             await _context.SaveChangesAsync();
 
@@ -59,6 +119,33 @@ namespace TpFinalLaboratorio.Net.Controllers
             if (id != inquilino.IdInquilino)
             {
                 return BadRequest();
+            }
+
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var existingInquilino = await _context
+                .Inquilinos.Include(i => i.Contratos)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(i =>
+                    i.IdInquilino == id
+                    && i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
+                );
+
+            if (existingInquilino == null)
+            {
+                return NotFound();
             }
 
             _context.Entry(inquilino).State = EntityState.Modified;
@@ -85,7 +172,28 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteInquilino(int id)
         {
-            var inquilino = await _context.Inquilinos.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inquilino = await _context
+                .Inquilinos.Include(i => i.Contratos)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(i =>
+                    i.IdInquilino == id
+                    && i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
+                );
+
             if (inquilino == null)
             {
                 return NotFound();
@@ -103,17 +211,28 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         // Nuevo método para obtener inquilinos por propietario
-        [HttpGet("ByPropietario/{propietarioId}")]
-        public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinosByPropietarioId(
-            int propietarioId
-        )
+        [HttpGet("ByPropietario")]
+        public async Task<ActionResult<IEnumerable<Inquilino>>> GetInquilinosByPropietario()
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             var inquilinos = await _context
                 .Inquilinos.Include(i => i.Contratos)
                 .ThenInclude(c => c.Inmueble)
                 .Where(i =>
-                    i.Contratos != null
-                    && i.Contratos.Any(c => c.Inmueble.IdPropietario == propietarioId)
+                    i.Contratos.Any(c => c.Inmueble.IdPropietario == propietario.IdPropietario)
                 )
                 .ToListAsync();
 

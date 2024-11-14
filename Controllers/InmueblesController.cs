@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,13 +25,45 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmuebles()
         {
-            return await _context.Inmuebles.ToListAsync();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            return await _context
+                .Inmuebles.Where(i => i.IdPropietario == propietario.IdPropietario)
+                .ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Inmueble>> GetInmueble(int id)
         {
-            var inmueble = await _context.Inmuebles.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inmueble = await _context.Inmuebles.FirstOrDefaultAsync(i =>
+                i.IdInmueble == id && i.IdPropietario == propietario.IdPropietario
+            );
 
             if (inmueble == null)
             {
@@ -46,6 +79,20 @@ namespace TpFinalLaboratorio.Net.Controllers
             [FromForm] IFormFile? imagen
         )
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             if (imagen != null && imagen.Length > 0)
             {
                 var fileExtension = Path.GetExtension(imagen.FileName);
@@ -59,6 +106,8 @@ namespace TpFinalLaboratorio.Net.Controllers
 
                 inmueble.Imagen = $"images/{uniqueFileName}";
             }
+
+            inmueble.IdPropietario = propietario.IdPropietario;
 
             _context.Inmuebles.Add(inmueble);
             await _context.SaveChangesAsync();
@@ -78,9 +127,25 @@ namespace TpFinalLaboratorio.Net.Controllers
                 return BadRequest();
             }
 
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             var existingInmueble = await _context
                 .Inmuebles.AsNoTracking()
-                .FirstOrDefaultAsync(i => i.IdInmueble == id);
+                .FirstOrDefaultAsync(i =>
+                    i.IdInmueble == id && i.IdPropietario == propietario.IdPropietario
+                );
             if (existingInmueble == null)
             {
                 return NotFound();
@@ -103,6 +168,8 @@ namespace TpFinalLaboratorio.Net.Controllers
             {
                 inmueble.Imagen = existingInmueble.Imagen;
             }
+
+            inmueble.IdPropietario = propietario.IdPropietario;
 
             _context.Entry(inmueble).State = EntityState.Modified;
 
@@ -128,7 +195,23 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteInmueble(int id)
         {
-            var inmueble = await _context.Inmuebles.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inmueble = await _context.Inmuebles.FirstOrDefaultAsync(i =>
+                i.IdInmueble == id && i.IdPropietario == propietario.IdPropietario
+            );
             if (inmueble == null)
             {
                 return NotFound();
@@ -141,13 +224,25 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         // Nuevo método para obtener inmuebles por propietario
-        [HttpGet("ByPropietario/{propietarioId}")]
-        public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmueblesByPropietarioId(
-            int propietarioId
-        )
+        [HttpGet("ByPropietario")]
+        public async Task<ActionResult<IEnumerable<Inmueble>>> GetInmueblesByPropietario()
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             var inmuebles = await _context
-                .Inmuebles.Where(i => i.IdPropietario == propietarioId)
+                .Inmuebles.Where(i => i.IdPropietario == propietario.IdPropietario)
                 .ToListAsync();
 
             if (inmuebles == null || inmuebles.Count == 0)
@@ -161,7 +256,23 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpPatch("{id}/estado")]
         public async Task<IActionResult> UpdateEstadoInmueble(int id, [FromBody] string nuevoEstado)
         {
-            var inmueble = await _context.Inmuebles.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var inmueble = await _context.Inmuebles.FirstOrDefaultAsync(i =>
+                i.IdInmueble == id && i.IdPropietario == propietario.IdPropietario
+            );
             if (inmueble == null)
             {
                 return NotFound();
@@ -196,8 +307,26 @@ namespace TpFinalLaboratorio.Net.Controllers
             int inmuebleId
         )
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             var contracts = await _context
-                .Contratos.Where(c => c.IdInmueble == inmuebleId)
+                .Contratos.Include(c => c.Inmueble)
+                .Where(c =>
+                    c.IdInmueble == inmuebleId
+                    && c.Inmueble.IdPropietario == propietario.IdPropietario
+                )
                 .ToListAsync();
 
             if (contracts == null || contracts.Count == 0)

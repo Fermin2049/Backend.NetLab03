@@ -68,23 +68,23 @@ namespace TpFinalLaboratorio.Net.Controllers
             );
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutPropietario(
-            int id,
+        [HttpPut("me")]
+        public async Task<IActionResult> PutMyDetails(
             [FromForm] Propietario propietario,
             [FromForm] IFormFile? fotoPerfil,
             [FromForm] string? currentPassword,
             [FromForm] string? newPassword
         )
         {
-            if (id != propietario.IdPropietario)
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
             {
-                return BadRequest();
+                return Unauthorized();
             }
 
             var existingPropietario = await _context
                 .Propietarios.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.IdPropietario == id);
+                .FirstOrDefaultAsync(p => p.Email == email);
             if (existingPropietario == null)
             {
                 return NotFound();
@@ -133,7 +133,7 @@ namespace TpFinalLaboratorio.Net.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!PropietarioExists(id))
+                if (!PropietarioExists(existingPropietario.IdPropietario))
                 {
                     return NotFound();
                 }
@@ -213,7 +213,7 @@ namespace TpFinalLaboratorio.Net.Controllers
 
             // Enviar correo electrónico con el enlace de restablecimiento
             var resetLink =
-                $"{Request.Scheme}://{Request.Host}/api/Propietarios/{propietario.IdPropietario}/restablecer-contrasena?token={token}";
+                $"{Request.Scheme}://{Request.Host}/api/Propietarios/me/restablecer-contrasena?token={token}";
             await EnviarCorreoAsync(
                 email,
                 "Restablecimiento de contraseña",
@@ -223,6 +223,38 @@ namespace TpFinalLaboratorio.Net.Controllers
             return Ok(
                 "Se ha enviado un enlace de restablecimiento de contraseña a su correo electrónico."
             );
+        }
+
+        [HttpPost("me/restablecer-contrasena")]
+        public async Task<IActionResult> RestablecerContraseña(
+            [FromBody] RestablecerContrasenaRequest request
+        )
+        {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound("Propietario no encontrado.");
+            }
+
+            // Verificar el token de restablecimiento
+            if (!VerificarTokenDeRestablecimiento(propietario, request.Token))
+            {
+                return BadRequest("Token de restablecimiento inválido o expirado.");
+            }
+
+            // Actualizar la contraseña
+            propietario.Password = HashPassword(request.NuevaContrasena);
+            await _context.SaveChangesAsync();
+
+            return Ok("Contraseña restablecida con éxito.");
         }
 
         private async Task EnviarCorreoAsync(string destinatario, string asunto, string cuerpo)
@@ -281,31 +313,6 @@ namespace TpFinalLaboratorio.Net.Controllers
                     },
                 }
             );
-        }
-
-        [HttpPost("{id}/restablecer-contrasena")]
-        public async Task<IActionResult> RestablecerContraseña(
-            int id,
-            [FromBody] RestablecerContrasenaRequest request
-        )
-        {
-            var propietario = await _context.Propietarios.FindAsync(id);
-            if (propietario == null)
-            {
-                return NotFound("Propietario no encontrado.");
-            }
-
-            // Verificar el token de restablecimiento
-            if (!VerificarTokenDeRestablecimiento(propietario, request.Token))
-            {
-                return BadRequest("Token de restablecimiento inválido o expirado.");
-            }
-
-            // Actualizar la contraseña
-            propietario.Password = HashPassword(request.NuevaContrasena);
-            await _context.SaveChangesAsync();
-
-            return Ok("Contraseña restablecida con éxito.");
         }
 
         private bool VerificarTokenDeRestablecimiento(Propietario propietario, string token)

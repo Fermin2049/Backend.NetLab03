@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,13 +25,57 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Pago>>> GetPagos()
         {
-            return await _context.Pagos.ToListAsync();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            return await _context
+                .Pagos.Include(p => p.Contrato)
+                .ThenInclude(c => c.Inmueble)
+                .Where(p =>
+                    p.Contrato != null
+                    && p.Contrato.Inmueble != null
+                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
+                )
+                .ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Pago>> GetPago(int id)
         {
-            var pago = await _context.Pagos.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var pago = await _context
+                .Pagos.Include(p => p.Contrato)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(p =>
+                    p.IdPago == id
+                    && p.Contrato != null
+                    && p.Contrato.Inmueble != null
+                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
+                );
 
             if (pago == null)
             {
@@ -43,6 +88,33 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpPost]
         public async Task<ActionResult<Pago>> PostPago(Pago pago)
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var contrato = await _context
+                .Contratos.Include(c => c.Inmueble)
+                .FirstOrDefaultAsync(c =>
+                    c.IdContrato == pago.IdContrato
+                    && c.Inmueble != null
+                    && c.Inmueble.IdPropietario == propietario.IdPropietario
+                );
+
+            if (contrato == null)
+            {
+                return BadRequest("El contrato no pertenece al propietario logueado.");
+            }
+
             _context.Pagos.Add(pago);
             await _context.SaveChangesAsync();
 
@@ -55,6 +127,35 @@ namespace TpFinalLaboratorio.Net.Controllers
             if (id != pago.IdPago)
             {
                 return BadRequest();
+            }
+
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var existingPago = await _context
+                .Pagos.Include(p => p.Contrato)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(p =>
+                    p.IdPago == id
+                    && p.Contrato != null
+                    && p.Contrato.Inmueble != null
+                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
+                );
+
+            if (existingPago == null)
+            {
+                return NotFound();
             }
 
             _context.Entry(pago).State = EntityState.Modified;
@@ -81,7 +182,30 @@ namespace TpFinalLaboratorio.Net.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePago(int id)
         {
-            var pago = await _context.Pagos.FindAsync(id);
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
+            var pago = await _context
+                .Pagos.Include(p => p.Contrato)
+                .ThenInclude(c => c.Inmueble)
+                .FirstOrDefaultAsync(p =>
+                    p.IdPago == id
+                    && p.Contrato != null
+                    && p.Contrato.Inmueble != null
+                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
+                );
+
             if (pago == null)
             {
                 return NotFound();
@@ -99,16 +223,30 @@ namespace TpFinalLaboratorio.Net.Controllers
         }
 
         // Nuevo método para obtener pagos por propietario
-        [HttpGet("ByPropietario/{propietarioId}")]
-        public async Task<ActionResult<IEnumerable<Pago>>> GetPagosByPropietarioId(
-            int propietarioId
-        )
+        [HttpGet("ByPropietario")]
+        public async Task<ActionResult<IEnumerable<Pago>>> GetPagosByPropietario()
         {
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (email == null)
+            {
+                return Unauthorized();
+            }
+
+            var propietario = await _context.Propietarios.FirstOrDefaultAsync(p =>
+                p.Email == email
+            );
+            if (propietario == null)
+            {
+                return NotFound();
+            }
+
             var pagos = await _context
                 .Pagos.Include(p => p.Contrato)
                 .ThenInclude(c => c.Inmueble)
                 .Where(p =>
-                    p.Contrato != null && p.Contrato.Inmueble.IdPropietario == propietarioId
+                    p.Contrato != null
+                    && p.Contrato.Inmueble != null
+                    && p.Contrato.Inmueble.IdPropietario == propietario.IdPropietario
                 )
                 .ToListAsync();
 
